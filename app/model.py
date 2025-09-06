@@ -9,7 +9,7 @@ from pathlib import Path
 import torch
 from torchvision.transforms import v2 as transforms
 
-load_env()
+# load_env()
 wandb_api_key = os.environ.get("WANDB_API_KEY")
 
 # Local folder to store models
