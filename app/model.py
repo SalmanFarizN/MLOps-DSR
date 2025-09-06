@@ -7,6 +7,7 @@ from torchvision.models import resnet18, ResNet
 from torch import nn
 from pathlib import Path
 import torch
+from torchvision.transforms import v2 as transforms
 
 load_env()
 wandb_api_key = os.environ.get("WANDB_API_KEY")
@@ -66,10 +67,24 @@ def load_model() -> ResNet:
 
     # Set the model to evaluation mode
     # Turn off dropout. Batch normalization layers uses stats from training
+    # (fine-tuning we did)
     model.eval()
 
     return model
 
 
 live_resnet = load_model()
-print(live_resnet)
+
+
+def load_transforms() -> transforms.Compose:
+    return transforms.Compose(
+        [
+            # Resize the image so that the shorter side is 256 pixels (often 256x256)
+            transforms.Resize(256),
+            # Then take a center crop of 224x224
+            transforms.CenterCrop(224),
+            transforms.ToImage(),
+            transforms.ToDtype(torch.float32, scale=True),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
