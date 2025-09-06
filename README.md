@@ -13,87 +13,104 @@ A small example project that downloads a trained model artifact from Weights & B
 
 # MLOps-DSR
 
-A small example project that downloads a trained model artifact from Weights & Biases and stores it locally.
+Small FastAPI service that loads a trained ResNet model from a W&B artifact and exposes a single prediction endpoint.
 
-## What this repo does
+## Project structure (important files)
 
-- Uses a small script in `app/model.py` to download a model artifact from W&B.
-- Stores the downloaded artifact in a local `models` directory (configurable in `app/model.py`).
+- `app/main.py` — FastAPI app; endpoints: `GET /` (health) and `POST /predict` (image upload -> classification).
+- `app/model.py` — model loading, artifact download, and image transforms.
+- `requirements.txt` — Python dependencies.
 
 ## Prerequisites
 
-- Python 3.10+ installed
-- A W&B account and an API key
+- Python 3.10+
+- A W&B account and an API key (if you want to download the model artifact)
 
-## Setup
+## Quick start (recommended)
 
-1. Create and activate a virtual environment (recommended):
+1. Create and activate a virtual environment:
 
- ```bash
- python -m venv .venv
- source .venv/bin/activate
- ```
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   ```
 
 2. Install dependencies:
 
- ```bash
- pip install -r requirements.txt
- ```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-3. Add a `.env` file at the repository root with the following variables (replace values):
+3. Create a `.env` file at the repository root with these values (replace with your values):
 
- ```text
- WANDB_API_KEY=your_wandb_api_key
- WANDB_ORG=your_wandb_organization
- WANDB_PROJECT=your_wandb_project
- WANDB_MODEL_NAME=artifact_name
- WANDB_MODEL_VERSION=version_or_alias
- ```
+   ```text
+   WANDB_API_KEY=your_wandb_api_key
+   WANDB_ORG=your_wandb_organization
+   WANDB_PROJECT=your_wandb_project
+   WANDB_MODEL_NAME=artifact_name
+   WANDB_MODEL_VERSION=version_or_alias
+   ```
 
-The project expects these environment variables to be loaded at runtime (the code calls `load_env()` in `app/model.py`).
+## Run the FastAPI app
 
-## Usage
-
-From the repository root run:
+Use the command you provided to run the app locally (port 8080, auto-reload):
 
 ```bash
-python -m app.model
+fastapi run app/main.py --port 8080 --reload
 ```
 
-This will call the `download_artifact()` function in `app/model.py`, log into W&B using `WANDB_API_KEY`, and download the specified artifact to the configured models directory.
+Alternative (common):
 
-## Notes about the models directory
+```bash
+uvicorn app.main:app --port 8080 --reload
+```
 
-- The script currently defines `MODELS_DIR = "../models"` inside `app/model.py`. That path is interpreted relative to the current working directory when the script runs. If you run from the repository root, `../models` resolves to one level above the repo (which may be unexpected).
+Open <http://localhost:8080/docs> to view the interactive Swagger UI.
 
-- Recommended options:
+## API
 
-  - Run the script from inside the `app/` directory so `../models` lands inside the repo (not ideal).
+- GET /
+  - Health check. Returns a simple JSON message.
 
-  - Or update `app/model.py` to create the models folder relative to the script location (recommended). Example change:
+- POST /predict
+  - Accepts a multipart/form-data file field named `input_image`.
+  - Response model:
 
-  ```python
-  import os
-  MODELS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "models"))
-  os.makedirs(MODELS_DIR, exist_ok=True)
-  ```
+    ```json
+    {
+      "category": "freshapple",
+      "confidence": 0.92
+    }
+    ```
 
-  This ensures `models/` is created inside the repository regardless of the current working directory.
+  - Example curl (replace image path):
+
+    ```bash
+    curl -X POST "http://localhost:8080/predict" -F "input_image=@/path/to/image.jpg"
+    ```
+
+## Notes about model & transforms
+
+- `app/model.py` currently sets `MODELS_DIR = "../models"`. That path is resolved relative to the process current working directory — so running the server from the repository root will place `models/` one level above the repo. Consider changing `MODELS_DIR` to be relative to the `app/` directory if you want the models folder created inside the repo. Example:
+
+```python
+import os
+MODELS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "models"))
+os.makedirs(MODELS_DIR, exist_ok=True)
+```
+
+- The default transforms in `load_transforms()` resize the shorter side to 256 and then center-crop to 224, so the network input is 224×224. If you want a final 256×256 image, change the pipeline to `Resize((256,256))` or `Resize(256)` + `CenterCrop(256)`.
 
 ## Troubleshooting
 
-- If the folder isn't created:
+- If the models folder is not created: print `MODELS_DIR` in `app/model.py` and check permissions.
+- If artifact download fails: verify `.env` variables and that `WANDB_API_KEY` is correct.
+- If the server doesn't start: ensure `fastapi`/`uvicorn` is installed and you activated the virtualenv.
 
-  - Check that your `.env` is loaded and that the script runs to completion.
-  - Verify file system permissions for the parent directory.
-  - Print `MODELS_DIR` in `app/model.py` before calling `os.makedirs` to see the resolved path.
+## Examples & testing
 
-- If W&B login fails, ensure `WANDB_API_KEY` is correct and that `wandb` is installed.
-
-## Next steps (optional)
-
-- Make `MODELS_DIR` configurable via an environment variable.
-- Add basic unit tests and a small CI workflow to validate the download logic.
+- Try the Swagger UI at `/docs` for quick manual tests.
+- Use the curl example above to test the `/predict` endpoint from the command line.
 
 ## License
 
