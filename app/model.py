@@ -39,17 +39,14 @@ def download_artifact():
     artifact.download(root=MODELS_DIR)
 
 
-download_artifact()
-
-
 def get_raw_model() -> ResNet:
     """Get the architecture of the model (random weights), this must match the architecture of the trained model."""
     architecture = resnet18(weights=None)
 
     architecture.fc = nn.Sequential(
-        nn.Linear(in_features=512, out_features=256, bias=True),
+        nn.Linear(in_features=512, out_features=512),
         nn.ReLU(),
-        nn.Linear(in_features=256, out_features=6, bias=True),
+        nn.Linear(in_features=512, out_features=6),
     )
 
     return architecture
@@ -61,6 +58,18 @@ def load_model() -> ResNet:
     model = get_raw_model()
 
     model_state_dict_path = Path(MODELS_DIR) / MODEL_FILENAME
-    model.load_state_dict(torch.load(model_state_dict_path, map_location="cpu"))
+    # This loads the trained weights from the .pth file
+    model_state_dict = torch.load(model_state_dict_path, map_location="cpu")
+
+    # This merges the trained weights into the model architecture
+    model.load_state_dict(model_state_dict, strict=True)
+
+    # Set the model to evaluation mode
+    # Turn off dropout. Batch normalization layers uses stats from training
+    model.eval()
 
     return model
+
+
+live_resnet = load_model()
+print(live_resnet)
