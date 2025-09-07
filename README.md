@@ -1,11 +1,21 @@
+
 # MLOps-DSR
 
-A small example project that downloads a trained model artifact from Weights & Biases and stores it locally.
+This project demonstrates how to fine-tune a ResNet18 model (pre-trained on ImageNet) to detect both fresh and rotten versions of fruits using the apples-oranges-bananas dataset from Kaggle. The model's training performance is tracked with Weights & Biases (W&B), and the best-performing model is stored as an artifact on W&B.
+
+**Fine-tuning was performed in this Kaggle Notebook:**  
+[https://www.kaggle.com/code/salmanfariznavas/scratchpad-fruit-classifier-5-09-2025](https://www.kaggle.com/code/salmanfariznavas/scratchpad-fruit-classifier-5-09-2025)
+
+The main objective is to provide hands-on experience with a simple MLOps pipeline: training, tracking, and deploying a machine learning model as a FastAPI endpoint on Google Cloud Run.
 
 ## What this repo does
 
-- Uses a small script in `app/model.py` to download a model artifact from W&B.
+- Fine-tunes a ResNet18 model on the apples-oranges-bananas dataset (including detection of rotten fruit).
+- Tracks experiment metrics and model artifacts using Weights & Biases.
+- Downloads the best model artifact from W&B using a script in `app/model.py`.
 - Stores the downloaded artifact in a local `models` directory (configurable in `app/model.py`).
+- Serves predictions via a FastAPI app, with endpoints for health check and image classification.
+- Demonstrates containerization with Docker and deployment to Google Cloud Run.
 
 ## Prerequisites
 
@@ -43,13 +53,62 @@ Small FastAPI service that loads a trained ResNet model from a W&B artifact and 
 
 3. Create a `.env` file at the repository root with these values (replace with your values):
 
-   ```text
-   WANDB_API_KEY=your_wandb_api_key
-   WANDB_ORG=your_wandb_organization
-   WANDB_PROJECT=your_wandb_project
-   WANDB_MODEL_NAME=artifact_name
-   WANDB_MODEL_VERSION=version_or_alias
-   ```
+  ```text
+  WANDB_API_KEY=your_wandb_api_key
+  WANDB_ORG=your_wandb_organization
+  WANDB_PROJECT=your_wandb_project
+  WANDB_MODEL_NAME=artifact_name
+  WANDB_MODEL_VERSION=version_or_alias
+  ```
+
+  **Note:** When running in Docker, these environment variables are set in the Dockerfile. You can edit the Dockerfile to add your values, or use `--env` flags with `docker run` to override them at runtime.
+
+## Running with Docker
+
+You can build and run the FastAPI app in a Docker container:
+
+1. **Build the Docker image:**
+
+  ```bash
+  docker build -t <name_of_image> .
+  ```
+
+2. **Run the Docker container and forward the port:**
+
+  ```bash
+  docker run -p 8080:8080 <name_of_image>
+  ```
+
+  This will start the FastAPI app inside the container and expose it on port 8080. You can then check the app at [http://localhost:8080/docs](http://localhost:8080/docs).
+
+  **Environment variables:**
+
+- The Dockerfile sets the W&B variables as ENV instructions. You can edit the Dockerfile to set your values, or override them at runtime:
+
+    ```bash
+    docker run -p 8080:8080 \
+     -e WANDB_API_KEY=your_wandb_api_key \
+     -e WANDB_ORG=your_wandb_organization \
+     -e WANDB_PROJECT=your_wandb_project \
+     -e WANDB_MODEL_NAME=artifact_name \
+     -e WANDB_MODEL_VERSION=version_or_alias \
+     <name_of_image>
+    ```
+
+## Deploying to Google Cloud Run
+
+Once you have tested the Docker image locally, you can deploy it to Google Cloud Run directly from your GitHub repository:
+
+1. **Push your code to GitHub.**
+2. **Create a new Cloud Run service** in the Google Cloud Console and connect it to your GitHub repo.
+3. **Configure build and deploy settings:**
+
+- Set the build source to your repo and the Dockerfile.
+- Set environment variables (WANDB_API_KEY, etc.) in the Cloud Run service settings.
+
+4. **Deploy.**
+
+After deployment, you will get a public URL to access your FastAPI app running on Cloud Run.
 
 ## Run the FastAPI app
 
